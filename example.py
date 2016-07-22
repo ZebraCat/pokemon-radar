@@ -619,8 +619,8 @@ def fullmap():
 def O_fullmap_for_location():
     full_path = os.path.realpath(__file__)
     (path, filename) = os.path.split(full_path)
-    latitude = float(request.args.get('lat', '0'))
-    longitude = float(request.args.get('long', '0'))
+    initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
+    latitude, longitude = initial_latitude, initial_longitude
     args = get_args()
     if args.auto_refresh:
         global auto_refresh
@@ -639,7 +639,6 @@ def O_fullmap_for_location():
 
     steplimit = int(args.step_limit)
 
-    pos = 1
     x = 0
     y = 0
     dx = 0
@@ -664,7 +663,7 @@ def O_fullmap_for_location():
         pokemons.update(results[i].get())
 
     return render_template(
-        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(float(latitude), float(longitude), pokemons), auto_refresh=auto_refresh)
+        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
 
 
 @app.route('/next_loc')
