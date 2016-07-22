@@ -495,6 +495,7 @@ def process_step(args, api_endpoint, access_token, profile_response,
                       profile_response, float_lat, float_long)
     hs = [h]
     seen = set([])
+    pokemons = {}
 
     for child in parent.children():
         latlng = LatLng.from_point(Cell(child).get_center())
@@ -561,6 +562,7 @@ transform_from_wgs_to_gcj(Location(Fort.Latitude, Fort.Longitude))
             "id": poke.pokemon.PokemonId,
             "name": pokename
         }
+    return pokemons
 
 def clear_stale_pokemons():
     current_time = time.time()
@@ -644,12 +646,9 @@ def O_fullmap_for_location():
     dy = -1
     steplimit2 = steplimit**2
     pool = ThreadPool(processes=4)
-    #async_result = pool.apply_async(perform_step, (step))
-    for step in range(steplimit2):
-        #starting at 0 index
-        debug('looping: step {} of {}'.format((step+1), steplimit**2))
-        #debug('steplimit: {} x: {} y: {} pos: {} dx: {} dy {}'.format(steplimit2, x, y, pos, dx, dy))
-        # Scan location math
+    results = []
+    pokemons = {}
+    for _ in range(steplimit2):
         if -steplimit2 / 2 < x <= steplimit2 / 2 and -steplimit2 / 2 < y <= steplimit2 / 2:
             latitude = x * 0.0025 + latitude
             longitude = y * 0.0025 + longitude
@@ -658,14 +657,14 @@ def O_fullmap_for_location():
 
         (x, y) = (x + dx, y + dy)
 
-        process_step(args, api_endpoint, access_token, profile_response,
-                     pokemonsJSON, [], [], latitude, longitude)
+        async_result = pool.apply_async(process_step, (args, api_endpoint, access_token, profile_response, pokemonsJSON, [], [], latitude, longitude))
+        results.append(async_result)
 
-        print('Completed: ' + str(
-            ((step+1) + pos * .25 - .25) / (steplimit2) * 100) + '%')
+    for i in range(steplimit2):
+        pokemons.update(results[i].get())
 
     return render_template(
-        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(float(latitude), float(longitude)), auto_refresh=auto_refresh)
+        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(float(latitude), float(longitude), pokemons), auto_refresh=auto_refresh)
 
 
 @app.route('/next_loc')
@@ -683,7 +682,7 @@ def next_loc():
         return 'ok'
 
 
-def get_pokemarkers(latitude, longitude):
+def get_pokemarkers(latitude, longitude, pokemons):
     pokeMarkers = [{
         'icon': icons.dots.red,
         'lat': latitude,
@@ -778,13 +777,13 @@ def get_map(lat, long):
         zoom='15', )
     return fullmap
 
-def OO_get_map(lat, lng):
+def OO_get_map(lat, lng, pokemons):
     return Map(
         identifier="fullmap2",
         style='height:100%;width:100%;top:0;left:0;position:absolute;z-index:200;',
         lat=lat,
         lng=lng,
-        markers=get_pokemarkers(lat, lng),
+        markers=get_pokemarkers(lat, lng, pokemons),
         zoom='15', )
 
 
