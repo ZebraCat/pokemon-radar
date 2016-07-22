@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import flask
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_googlemaps import GoogleMaps
 from flask_googlemaps import Map
 from flask_googlemaps import icons
@@ -162,7 +162,6 @@ def retrying_set_location(location_name):
                     str(e)))
         time.sleep(1.25)
 
-
 def set_location(location_name):
     geolocator = GoogleV3()
     prog = re.compile('^(\-?\d+(\.\d+)?),\s*(\-?\d+(\.\d+)?)$')
@@ -181,6 +180,13 @@ def set_location(location_name):
     print('[!] lat/long/alt: {} {} {}'.format(local_lat, local_lng, alt))
     set_location_coords(local_lat, local_lng, alt)
 
+def O_set_location_explicit(lat, long):
+    global origin_lat
+    global origin_lon
+    origin_lat = float(lat)
+    origin_lon = float(long)
+    alt = 0.0
+    set_location_coords(origin_lat, origin_lon, alt)
 
 def set_location_coords(lat, long, alt):
     global COORDS_LATITUDE, COORDS_LONGITUDE, COORDS_ALTITUDE
@@ -792,6 +798,58 @@ def fullmap():
     return render_template(
         'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=get_map(), auto_refresh=auto_refresh)
 
+@app.route('/loc')
+def O_fullmap_for_location():
+    full_path = os.path.realpath(__file__)
+    (path, filename) = os.path.split(full_path)
+    latitude = request.args.get('lat', '0')
+    longitude = request.args.get('long', '0')
+    O_set_location_explicit(latitude, longitude)
+    args = get_args()
+    if args.auto_refresh:
+        global auto_refresh
+        auto_refresh = int(args.auto_refresh) * 1000
+
+    if args.ampm_clock:
+        global is_ampm_clock
+        is_ampm_clock = True
+
+    api_endpoint, access_token, profile_response = login(args)
+
+    clear_stale_pokemons()
+
+    pokemonsJSON = json.load(
+        open(path + '/locales/pokemon.' + args.locale + '.json'))
+
+    steplimit = int(args.step_limit)
+
+    pos = 1
+    x = 0
+    y = 0
+    dx = 0
+    dy = -1
+    steplimit2 = steplimit**2
+    for step in range(steplimit2):
+        #starting at 0 index
+        debug('looping: step {} of {}'.format((step+1), steplimit**2))
+        #debug('steplimit: {} x: {} y: {} pos: {} dx: {} dy {}'.format(steplimit2, x, y, pos, dx, dy))
+        # Scan location math
+        if -steplimit2 / 2 < x <= steplimit2 / 2 and -steplimit2 / 2 < y <= steplimit2 / 2:
+            set_location_coords(x * 0.0025 + origin_lat, y * 0.0025 + origin_lon, 0)
+        if x == y or x < 0 and x == -y or x > 0 and x == 1 - y:
+            (dx, dy) = (-dy, dx)
+
+        (x, y) = (x + dx, y + dy)
+
+        process_step(args, api_endpoint, access_token, profile_response,
+                     pokemonsJSON, [], [])
+
+        print('Completed: ' + str(
+            ((step+1) + pos * .25 - .25) / (steplimit2) * 100) + '%')
+
+    return render_template(
+        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(float(latitude), float(longitude)), auto_refresh=auto_refresh)
+
 
 @app.route('/next_loc')
 def next_loc():
@@ -903,8 +961,17 @@ def get_map():
         zoom='15', )
     return fullmap
 
+def OO_get_map(lat, lng):
+    return Map(
+        identifier="fullmap2",
+        style='height:100%;width:100%;top:0;left:0;position:absolute;z-index:200;',
+        lat=lat,
+        lng=lng,
+        markers=get_pokemarkers(),
+        zoom='15', )
+
 
 if __name__ == '__main__':
     args = get_args()
-    register_background_thread(initial_registration=True)
+    #register_background_thread(initial_registration=True)
     app.run(debug=True, threaded=True, host=args.host, port=args.port)
