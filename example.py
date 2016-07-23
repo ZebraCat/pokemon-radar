@@ -125,14 +125,6 @@ def getNeighbors(float_lat, float_long):
 def f2i(float):
     return struct.unpack('<Q', struct.pack('<d', float))[0]
 
-
-def f2h(float):
-    return hex(struct.unpack('<Q', struct.pack('<d', float))[0])
-
-
-def h2f(hex):
-    return struct.unpack('<d', struct.pack('<Q', int(hex, 16)))[0]
-
 def retrying_api_req(service, api_endpoint, access_token, location_coords,*args, **kwargs):
     while True:
         try:
@@ -644,7 +636,7 @@ def O_fullmap_for_location():
     dx = 0
     dy = -1
     steplimit2 = steplimit**2
-    pool = ThreadPool(processes=4)
+    pool = ThreadPool(processes=8)
     results = []
     pokemons = {}
     for _ in range(steplimit2):
