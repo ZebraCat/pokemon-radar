@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import flask
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
 from multiprocessing.pool import ThreadPool
 from flask_googlemaps import GoogleMaps
 from flask_googlemaps import Map
@@ -657,6 +657,14 @@ def O_fullmap_for_location():
     return render_template(
         'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
 
+
+@app.route('/privacy_policy')
+def privacy():
+    return send_from_directory('.', 'privacy_policy.html')
+
+@app.route('/support')
+def support():
+    return "<div><h1>Contact and Support Information</h1><br><label>Netanel Rabinowitz - netan3@gmail.com</label><br><label>Omri Manor - omrimanor13@gmail.com</label></div>"
 
 @app.route('/next_loc')
 def next_loc():
