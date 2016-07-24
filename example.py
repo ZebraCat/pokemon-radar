@@ -3,6 +3,7 @@
 
 import flask
 from flask import Flask, render_template, request, send_from_directory
+from flask.json import jsonify
 from multiprocessing.pool import ThreadPool
 from flask_googlemaps import GoogleMaps
 from flask_googlemaps import Map
@@ -607,11 +608,9 @@ def fullmap():
     return render_template(
         'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=get_map(0.0, 0.0), auto_refresh=auto_refresh)
 
-@app.route('/loc')
-def O_fullmap_for_location():
+def get_pokemons(initial_latitude, initial_longitude):
     full_path = os.path.realpath(__file__)
     (path, filename) = os.path.split(full_path)
-    initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
     latitude, longitude = initial_latitude, initial_longitude
     args = get_args()
     if args.auto_refresh:
@@ -654,8 +653,26 @@ def O_fullmap_for_location():
     for i in range(steplimit2):
         pokemons.update(results[i].get())
 
+    return pokemons
+
+@app.route('/loc')
+def O_fullmap_for_location():
+    initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
+    pokemons = get_pokemons(initial_latitude, initial_longitude)
     return render_template(
         'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
+
+
+@app.route('/check_pokemons', methods=["POST"])
+def check_pokemons():
+    request_json = request.json
+    pokelist = request_json['pokemons']
+    initial_latitude, initial_longitude = float(request_json['lat']), float(request_json['long'])
+    pokemons = get_pokemons(initial_latitude, initial_longitude)
+    matched_pokemons = filter(lambda pokemon: pokemon['name'] in pokelist, pokemons.values())
+    matched_pokemon_names = map(lambda pokemon: pokemon['name'], matched_pokemons)
+    # return unique names
+    return jsonify(list(set(matched_pokemon_names)))
 
 
 @app.route('/privacy_policy')
