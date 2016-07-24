@@ -640,8 +640,8 @@ def get_pokemons(initial_latitude, initial_longitude):
     pokemons = {}
     for _ in range(steplimit2):
         if -steplimit2 / 2 < x <= steplimit2 / 2 and -steplimit2 / 2 < y <= steplimit2 / 2:
-            latitude = x * 0.0025 + latitude
-            longitude = y * 0.0025 + longitude
+            latitude = x * 0.0025 + initial_latitude
+            longitude = y * 0.0025 + initial_longitude
         if x == y or x < 0 and x == -y or x > 0 and x == 1 - y:
             (dx, dy) = (-dy, dx)
 
