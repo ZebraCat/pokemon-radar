@@ -657,10 +657,13 @@ def get_pokemons(initial_latitude, initial_longitude):
 
 @app.route('/loc')
 def O_fullmap_for_location():
-    initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
-    pokemons = get_pokemons(initial_latitude, initial_longitude)
-    return render_template(
-        'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
+    try:
+        initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
+        pokemons = get_pokemons(initial_latitude, initial_longitude)
+        return render_template(
+            'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
+    except:
+        return '<div><label>Oops! something went wrong... please try again later.</label></div>'
 
 
 @app.route('/check_pokemons', methods=["POST"])
