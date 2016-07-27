@@ -659,6 +659,10 @@ def get_pokemons(initial_latitude, initial_longitude):
 def O_fullmap_for_location():
     try:
         initial_latitude, initial_longitude = float(request.args.get('lat', '0')), float(request.args.get('long', '0'))
+        if initial_longitude == 0.0 or initial_longitude == 0.0:
+            # default - display central park coordinates
+            initial_latitude = 40.785091
+            initial_longitude = -73.968285
         pokemons = get_pokemons(initial_latitude, initial_longitude)
         return render_template(
             'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
