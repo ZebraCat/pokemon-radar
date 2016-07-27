@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import flask
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, request, send_from_directory, redirect
 from flask.json import jsonify
 from multiprocessing.pool import ThreadPool
 from flask_googlemaps import GoogleMaps
@@ -677,6 +677,9 @@ def check_pokemons():
     # return unique names
     return jsonify(list(set(matched_pokemon_names)))
 
+@app.route('/favicon.ico')
+def fav():
+    return redirect("http://dummyimage.com/16x16/ff/ff.png", code=302)
 
 @app.route('/privacy_policy')
 def privacy():
