@@ -736,7 +736,7 @@ def get_pokemarkers(latitude, longitude, pokemons):
             'type': 'pokemon',
             'key': pokemon_key,
             'disappear_time': pokemon['disappear_time'],
-            'icon': 'static/icons/%d.png' % pokemon["id"],
+            'icon': icons.dots.blue,
             'lat': pokemon["lat"],
             'lng': pokemon["lng"],
             'infobox': label
