@@ -479,82 +479,30 @@ def login(args, location_coords):
 
 
 
-def process_step(args, api_endpoint, access_token, profile_response,
-                 pokemonsJSON, ignore, only, float_lat, float_long):
+def process_step(pokemonsJSON, float_lat, float_long):
     print('[+] Searching for Pokemon at location {} {}'.format(float_lat, float_long))
-    parent = CellId.from_lat_lng(LatLng.from_degrees(float_lat,
-                                                     float_long)).parent(15)
-    h = get_heartbeat(args.auth_service, api_endpoint, access_token,
-                      profile_response, float_lat, float_long)
-    hs = [h]
-    seen = set([])
-    pokemons = {}
+    response = requests.get("https://pokevision.com/map/data/{}/{}".format(float_lat, float_long))
 
-    for child in parent.children():
-        latlng = LatLng.from_point(Cell(child).get_center())
-        hs.append(
-            get_heartbeat(args.auth_service, api_endpoint, access_token,
-                          profile_response, latlng.lat().degrees, latlng.lng().degrees))
+    if response.status_code != 200:
+        raise Exception
 
-    visible = []
-
-    for hh in hs:
-        try:
-            for cell in hh.cells:
-                for wild in cell.WildPokemon:
-                    hash = wild.SpawnPointId + ':' \
-                        + str(wild.pokemon.PokemonId)
-                    if hash not in seen:
-                        visible.append(wild)
-                        seen.add(hash)
-                if cell.Fort:
-                    for Fort in cell.Fort:
-                        if Fort.Enabled == True:
-                            if args.china:
-                                (Fort.Latitude, Fort.Longitude) = \
-transform_from_wgs_to_gcj(Location(Fort.Latitude, Fort.Longitude))
-                            if Fort.GymPoints and args.display_gym:
-                                gyms[Fort.FortId] = [Fort.Team, Fort.Latitude,
-                                                     Fort.Longitude, Fort.GymPoints]
-
-                            elif Fort.FortType \
-                                and args.display_pokestop:
-                                expire_time = 0
-                                if Fort.LureInfo.LureExpiresTimestampMs:
-                                    expire_time = datetime\
-                                        .fromtimestamp(Fort.LureInfo.LureExpiresTimestampMs / 1000.0)\
-                                        .strftime("%H:%M:%S")
-                                if (expire_time != 0 or not args.onlylure):
-                                    pokestops[Fort.FortId] = [Fort.Latitude,
-                                                              Fort.Longitude, expire_time]
-        except AttributeError:
-            break
+    visible = response.json()['pokemon']
 
     for poke in visible:
-        pokeid = str(poke.pokemon.PokemonId)
+        pokeid = str(poke['pokemonId'])
         pokename = pokemonsJSON[pokeid]
-        if args.ignore:
-            if pokename.lower() in ignore or pokeid in ignore:
-                continue
-        elif args.only:
-            if pokename.lower() not in only and pokeid not in only:
-                continue
 
-        disappear_timestamp = time.time() + poke.TimeTillHiddenMs \
-            / 1000
+        disappear_timestamp = time.time() + poke['expiration_time'] / 1000
 
-        if args.china:
-            (poke.Latitude, poke.Longitude) = \
-                transform_from_wgs_to_gcj(Location(poke.Latitude,
-                    poke.Longitude))
-
-        pokemons[poke.SpawnPointId] = {
-            "lat": poke.Latitude,
-            "lng": poke.Longitude,
+        pokemons[poke['id']] = {
+            "lat": poke['latitude'],
+            "lng": poke['longitude'],
             "disappear_time": disappear_timestamp,
-            "id": poke.pokemon.PokemonId,
+            "id": pokeid,
             "name": pokename
         }
+
+        print pokemons
     return pokemons
 
 def clear_stale_pokemons():
@@ -621,37 +569,19 @@ def get_pokemons(initial_latitude, initial_longitude):
         global is_ampm_clock
         is_ampm_clock = True
 
-    api_endpoint, access_token, profile_response = login(args, (latitude, longitude, 0))
-
-    clear_stale_pokemons()
-
     pokemonsJSON = json.load(
         open(path + '/locales/pokemon.' + args.locale + '.json'))
 
     steplimit = int(args.step_limit)
 
-    x = 0
-    y = 0
-    dx = 0
-    dy = -1
-    steplimit2 = steplimit**2
-    pool = ThreadPool(processes=8)
+    pool = ThreadPool(processes=1)
     results = []
     pokemons = {}
-    for _ in range(steplimit2):
-        if -steplimit2 / 2 < x <= steplimit2 / 2 and -steplimit2 / 2 < y <= steplimit2 / 2:
-            latitude = x * 0.0025 + initial_latitude
-            longitude = y * 0.0025 + initial_longitude
-        if x == y or x < 0 and x == -y or x > 0 and x == 1 - y:
-            (dx, dy) = (-dy, dx)
 
-        (x, y) = (x + dx, y + dy)
+    async_result = pool.apply_async(process_step, (pokemonsJSON, latitude, longitude))
+    results.append(async_result)
 
-        async_result = pool.apply_async(process_step, (args, api_endpoint, access_token, profile_response, pokemonsJSON, [], [], latitude, longitude))
-        results.append(async_result)
-
-    for i in range(steplimit2):
-        pokemons.update(results[i].get())
+    pokemons.update(results[0].get())
 
     return pokemons
 
@@ -666,7 +596,8 @@ def O_fullmap_for_location():
         pokemons = get_pokemons(initial_latitude, initial_longitude)
         return render_template(
             'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=OO_get_map(initial_latitude, initial_longitude, pokemons), auto_refresh=auto_refresh)
-    except:
+    except Exception as e:
+        print e
         return '<div><label>Oops! something went wrong... please try again later.</label></div>'
 
 
